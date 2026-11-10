@@ -28,5 +28,24 @@
     <footer>
         <button id="submit-btn" type="button" disabled>Submit event timestamp</button>
     </footer>
+    <section class="event-log" hidden>
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th scope="col">Event</th>
+                        <th scope="col">Timestamp (UTC)</th>
+                        <th scope="col">Epoch Timestamp (UTC)</th>
+                    </tr>
+                </thead>
+                <tbody id="event-log-body"></tbody>
+            </table>
+        </div>
+        <div class="log-actions">
+            <button id="download-csv-btn" type="button">Download CSV</button>
+            <button id="share-csv-btn" type="button" hidden>Share CSV</button>
+            <button id="clear-log-btn" type="button">Clear log</button>
+        </div>
+    </section>
 </body>
 </html>

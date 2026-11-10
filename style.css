@@ -136,6 +136,78 @@ button:disabled {
     background-color: #1565c0;
 }
 
+/* Event log table */
+.event-log {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 0 16px 24px;
+    padding-bottom: max(24px, env(safe-area-inset-bottom));
+}
+
+.event-log[hidden] {
+    display: none;
+}
+
+/* Lets the table scroll sideways on very narrow screens instead of
+   pushing the whole page wider */
+.table-wrapper {
+    width: 100%;
+    max-width: 640px;
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 1rem;
+}
+
+th, td {
+    padding: 10px 12px;
+    border: 1px solid #ccc;
+    text-align: left;
+    white-space: nowrap;
+}
+
+th {
+    background-color: #f0f0f0;
+}
+
+tbody tr:nth-child(even) {
+    background-color: #fafafa;
+}
+
+/* Keep digits lined up so times and epochs are easy to compare */
+td:nth-child(2), td:nth-child(3) {
+    font-variant-numeric: tabular-nums;
+}
+
+.log-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 16px;
+}
+
+.log-actions button {
+    font-size: 1rem;
+    background-color: #455a64;
+}
+
+/* Outlined rather than filled so the destructive action doesn't look
+   like the Stop button and is harder to tap by mistake */
+.log-actions #clear-log-btn {
+    background-color: transparent;
+    color: #c62828;
+    box-shadow: inset 0 0 0 2px #c62828;
+}
+
+.log-actions button[hidden] {
+    display: none;
+}
+
 /* Small phones: let the buttons share the width evenly */
 @media (max-width: 400px) {
     .button-row button {
