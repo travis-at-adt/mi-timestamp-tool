@@ -172,12 +172,18 @@ function updateButtonState() {
     });
 }
 
-// Tapping Start or Stop logs the timestamp immediately.
+const START_CHECKLIST_MESSAGE =
+    "Are you ready to start the test? Please ensure the following:\n\n" +
+    "- The tester is outside the home\n" +
+    "- There has been no motion in the house for at least 30 seconds\n" +
+    "- No other people or pets are in the Detection Zone";
+
+// Tapping Start or Stop logs the timestamp (after any confirmation dialog).
 function logTimestamp(action) {
     if (eventTypeSelect.value === "") return;
 
     // Capture the time of the tap before any warning dialog is shown.
-    const epochSeconds = Math.floor(Date.now() / 1000);
+    let epochSeconds = Math.floor(Date.now() / 1000);
     const eventName = eventTypeSelect.selectedOptions[0].text;
     const eventText = `${action} ${eventName}`;
 
@@ -189,6 +195,17 @@ function logTimestamp(action) {
         const message = `The last entry was also a ${buttonName} ("${lastEventText}").\n\n` +
             `Log another ${buttonName} anyway?`;
         if (!confirm(message)) return;
+    } else if (action === "Started") {
+        // Readiness checklist for a normal Start (the repeat-Start warning
+        // above replaces it).
+        if (!confirm(START_CHECKLIST_MESSAGE)) return;
+    }
+
+    // The test starts when the user confirms either Start dialog, so a
+    // Start's timestamp (and the timer) is taken after OK, not at the tap.
+    // Stop keeps the time of the tap.
+    if (action === "Started") {
+        epochSeconds = Math.floor(Date.now() / 1000);
     }
 
     const row = addTableRow(eventText, epochSeconds);
