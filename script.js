@@ -1,25 +1,67 @@
 const eventTypeSelect = document.getElementById("event-type");
 const startButton = document.getElementById("start-btn");
 const stopButton = document.getElementById("stop-btn");
-const submitButton = document.getElementById("submit-btn");
 const downloadButton = document.getElementById("download-csv-btn");
 const shareButton = document.getElementById("share-csv-btn");
-const toggleButtons = [startButton, stopButton];
+const timestampButtons = [startButton, stopButton];
 const eventLog = document.querySelector(".event-log");
 const eventLogBody = document.getElementById("event-log-body");
+const timerDisplay = document.getElementById("timer");
 
-// Start/Stop buttons behave like a pair of radio buttons:
-// tapping one selects it and deselects the other.
-toggleButtons.forEach((button) => {
-    button.setAttribute("aria-pressed", "false");
+// --- Elapsed timer: starts on Start, freezes on Stop ---
+// Uses the same epoch seconds as the logged rows, so the timer always
+// matches the difference between the Start and Stop timestamps.
+let timerStartEpoch = null; // epoch seconds of the running Start, or null
+let timerInterval = null;
 
-    button.addEventListener("click", () => {
-        toggleButtons.forEach((other) => {
-            other.setAttribute("aria-pressed", String(other === button));
-        });
-        updateButtonState();
-    });
-});
+function formatElapsed(totalSeconds) {
+    const s = Math.max(0, totalSeconds);
+    const hours = Math.floor(s / 3600);
+    const minutes = String(Math.floor((s % 3600) / 60)).padStart(2, "0");
+    const seconds = String(s % 60).padStart(2, "0");
+    return hours > 0 ? `${hours}:${minutes}:${seconds}` : `${minutes}:${seconds}`;
+}
+
+function showElapsed(totalSeconds) {
+    timerDisplay.textContent = formatElapsed(totalSeconds);
+}
+
+function tickTimer() {
+    showElapsed(Math.floor(Date.now() / 1000) - timerStartEpoch);
+}
+
+// A new Start (including a confirmed repeat Start) restarts from 00:00.
+function startTimer(epochSeconds) {
+    timerStartEpoch = epochSeconds;
+    clearInterval(timerInterval);
+    timerInterval = setInterval(tickTimer, 250);
+    timerDisplay.classList.add("running");
+    tickTimer();
+}
+
+// Stop freezes the display at the Start-to-Stop duration. A repeat Stop
+// while nothing is running leaves the frozen value as it is.
+function stopTimer(epochSeconds) {
+    if (timerStartEpoch === null) return;
+    clearInterval(timerInterval);
+    timerInterval = null;
+    showElapsed(epochSeconds - timerStartEpoch);
+    timerStartEpoch = null;
+    timerDisplay.classList.remove("running");
+}
+
+function resetTimer() {
+    clearInterval(timerInterval);
+    timerInterval = null;
+    timerStartEpoch = null;
+    timerDisplay.classList.remove("running");
+    showElapsed(0);
+}
+
+function updateTimerForEntry(eventText, epochSeconds) {
+    if (eventText.startsWith("Started ")) startTimer(epochSeconds);
+    else if (eventText.startsWith("Ended ")) stopTimer(epochSeconds);
+}
 
 // --- CSV log kept in localStorage so it survives refreshes ---
 const CSV_STORAGE_KEY = "eventLogCsv";
@@ -122,41 +164,45 @@ function makeCsvFile() {
     return new File([buildCsv()], csvFileName(), { type: "text/csv" });
 }
 
-function selectedToggle() {
-    return toggleButtons.find((b) => b.getAttribute("aria-pressed") === "true");
-}
-
-// Start/Stop need an event type; Submit also needs Start or Stop chosen.
+// Start/Stop are only usable once an event type is chosen.
 function updateButtonState() {
     const hasEventType = eventTypeSelect.value !== "";
-    toggleButtons.forEach((button) => {
+    timestampButtons.forEach((button) => {
         button.disabled = !hasEventType;
     });
-    submitButton.disabled = !(hasEventType && selectedToggle());
 }
 
-submitButton.addEventListener("click", () => {
-    const toggle = selectedToggle();
-    if (eventTypeSelect.value === "" || !toggle) return;
+// Tapping Start or Stop logs the timestamp immediately.
+function logTimestamp(action) {
+    if (eventTypeSelect.value === "") return;
 
-    const now = new Date();
-    const action = toggle === startButton ? "Started" : "Ended";
+    // Capture the time of the tap before any warning dialog is shown.
+    const epochSeconds = Math.floor(Date.now() / 1000);
     const eventName = eventTypeSelect.selectedOptions[0].text;
-    const epochSeconds = Math.floor(now.getTime() / 1000);
     const eventText = `${action} ${eventName}`;
+
+    // Warn if the same button (Start or Stop) was used for the previous entry.
+    const lastRow = eventLogBody.rows[eventLogBody.rows.length - 1];
+    const lastEventText = lastRow ? lastRow.cells[0].textContent : "";
+    if (lastEventText.startsWith(`${action} `)) {
+        const buttonName = action === "Started" ? "Start" : "Stop";
+        const message = `The last entry was also a ${buttonName} ("${lastEventText}").\n\n` +
+            `Log another ${buttonName} anyway?`;
+        if (!confirm(message)) return;
+    }
 
     const row = addTableRow(eventText, epochSeconds);
 
     // CSV gets only the Event and epoch columns (no hh:mm:ss column).
     appendToCsv(eventText, epochSeconds);
 
-    row.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    updateTimerForEntry(eventText, epochSeconds);
 
-    // Clear Start/Stop (event type is kept) so the next entry needs a
-    // fresh choice; this also deactivates Submit again.
-    toggleButtons.forEach((button) => button.setAttribute("aria-pressed", "false"));
-    updateButtonState();
-});
+    row.scrollIntoView({ block: "nearest", behavior: "smooth" });
+}
+
+startButton.addEventListener("click", () => logTimestamp("Started"));
+stopButton.addEventListener("click", () => logTimestamp("Ended"));
 
 downloadButton.addEventListener("click", () => {
     const url = URL.createObjectURL(makeCsvFile());
@@ -211,9 +257,16 @@ document.getElementById("clear-log-btn").addEventListener("click", () => {
     }
     eventLogBody.replaceChildren();
     eventLog.hidden = true;
+    resetTimer();
 });
 
 restoreTableFromCsv();
+
+// Replay the restored rows so a refresh mid-event keeps the timer running
+// (or shows the last Start-to-Stop duration if the last entry was a Stop).
+Array.from(eventLogBody.rows).forEach((row) => {
+    updateTimerForEntry(row.cells[0].textContent, Number(row.cells[2].textContent));
+});
 
 eventTypeSelect.addEventListener("change", updateButtonState);
 // Browsers can restore the previous selection when the user navigates

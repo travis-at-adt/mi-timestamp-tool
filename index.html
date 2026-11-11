@@ -10,6 +10,7 @@
 <body>
     <h1>Mock Intrusion Timestamp Tool</h1>
     <main>
+        <div id="timer" class="timer" role="timer" aria-label="Elapsed time since Start">00:00</div>
         <div class="event-type">
             <h2><label for="event-type">Select event type</label></h2>
             <select id="event-type" name="event-type">
@@ -25,9 +26,6 @@
             <button id="stop-btn" type="button" disabled>Add Stop Timestamp</button>
         </div>
     </main>
-    <footer>
-        <button id="submit-btn" type="button" disabled>Submit event timestamp</button>
-    </footer>
     <section class="event-log" hidden>
         <div class="table-wrapper">
             <table>
